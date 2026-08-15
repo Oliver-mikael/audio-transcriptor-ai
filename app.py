@@ -54,4 +54,4 @@ if uploaded_file:
                 st.error(f"Error: {e}")
 
 st.markdown("---")
-st.markdown("Audio + IA por Oliver ☁️")
+st.markdown("Audio + IA por C l a u d e ☁️")
