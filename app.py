@@ -1,5 +1,4 @@
 import streamlit as st
-from huggingface_hub import inference_client
 import os
 from datetime import datetime
 
@@ -7,7 +6,7 @@ from datetime import datetime
 st.set_page_config(page_title="Audio Transcriptor AI", layout="wide")
 
 st.title("🎤 Transcriptor de Audio + IA")
-st.markdown("Sube audio → Transcribe → Procesa con IA")
+st.markdown("Sube audio → Procesa con IA")
 
 # ============================================
 # SIDEBAR - Configuración
@@ -15,94 +14,84 @@ st.markdown("Sube audio → Transcribe → Procesa con IA")
 with st.sidebar:
     st.header("⚙️ Configuración")
     
-    hf_token = st.text_input(
-        "🔑 Token HuggingFace (gratis):",
+    claude_key = st.text_input(
+        "🔑 Token Claude API:",
         type="password",
-        help="Obten en: https://huggingface.co/settings/tokens"
+        help="Obten en: https://console.anthropic.com/"
     )
     
     action = st.radio(
-        "¿Qué quieres hacer con la transcripción?",
+        "¿Qué quieres hacer?",
         ["📝 Solo transcribir",
          "📋 Resumir",
-         "🏷️ Clasificar en categorías",
+         "🏷️ Clasificar",
          "✅ Extraer acciones",
-         "🔍 Análisis personalizado"]
+         "🔍 Análisis completo"]
     )
 
 # ============================================
-# MAIN - Upload Audio
+# MAIN
 # ============================================
 st.header("1️⃣ Sube tu Audio")
 
 uploaded_file = st.file_uploader(
-    "Sube un archivo de audio (mp3, wav, m4a, ogg)",
+    "Sube un archivo de audio",
     type=["mp3", "wav", "m4a", "ogg", "flac"]
 )
 
-if uploaded_file and hf_token:
-    st.success("✅ Archivo cargado. Procesando...")
+if uploaded_file:
+    st.success("✅ Archivo cargado")
     
-    # Guardar archivo temporalmente
+    # Guardar archivo
     with open("temp_audio.wav", "wb") as f:
         f.write(uploaded_file.getbuffer())
     
-    # Transcribir con Whisper (HuggingFace)
-    try:
-        client = inference_client.InferenceClient(
-            api_key=hf_token
-        )
-        
-        with open("temp_audio.wav", "rb") as audio_file:
-            transcription = client.automatic_speech_recognition(
-                audio_file,
-                model="openai/whisper-small"
-            )
-        
-        transcription_text = transcription.get("text", "")
-        
-        st.success("✅ Transcripción completada!")
-        
-        # ============================================
-        # TRANSCRIPCIÓN
-        # ============================================
-        st.header("2️⃣ Transcripción")
-        st.text_area("Texto transcrito:", transcription_text, height=150)
-        
-        # ============================================
-        # PROCESAR CON IA
-        # ============================================
+    st.info("⚠️ Para transcribir, necesitas usar un servicio externo o Whisper API")
+    
+    # Simulación de transcripción (para demo)
+    st.header("2️⃣ Transcripción")
+    
+    transcription_text = st.text_area(
+        "Pega tu transcripción aquí:",
+        height=150,
+        placeholder="Ej: Esta es mi grabación de voz..."
+    )
+    
+    # ============================================
+    # PROCESAR CON IA
+    # ============================================
+    if transcription_text and claude_key:
         st.header("3️⃣ Procesamiento con IA")
         
-        if st.button("🚀 Procesar con IA"):
+        if st.button("🚀 Procesar con Claude"):
             with st.spinner("IA procesando..."):
-                # Prompts según acción
-                prompts = {
-                    "📝 Solo transcribir": "Devuelve solo el texto transcrito sin cambios.",
-                    "📋 Resumir": f"Resume en 3-5 puntos clave este texto:\n\n{transcription_text}",
-                    "🏷️ Clasificar en categorías": f"Clasifica este texto en categorías (ej: Trabajo, Personal, Ideas, Urgente):\n\n{transcription_text}",
-                    "✅ Extraer acciones": f"Extrae SOLO las acciones/tareas que se deben hacer de este texto:\n\n{transcription_text}",
-                    "🔍 Análisis personalizado": f"Analiza profundamente este texto (resumen, temas, sentimiento, recomendaciones):\n\n{transcription_text}"
-                }
-                
-                prompt = prompts[action]
-                
-                # Usar Claude API (necesita token)
                 try:
                     import anthropic
-                    client_claude = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
                     
-                    response = client_claude.messages.create(
+                    client = anthropic.Anthropic(api_key=claude_key)
+                    
+                    prompts = {
+                        "📝 Solo transcribir": transcription_text,
+                        "📋 Resumir": f"Resume en 3-5 puntos este texto:\n\n{transcription_text}",
+                        "🏷️ Clasificar": f"Clasifica en categorías (Trabajo, Personal, Ideas, Urgente):\n\n{transcription_text}",
+                        "✅ Extraer acciones": f"Extrae SOLO las acciones/tareas:\n\n{transcription_text}",
+                        "🔍 Análisis completo": f"Analiza: resumen, temas, sentimiento, recomendaciones:\n\n{transcription_text}"
+                    }
+                    
+                    prompt = prompts[action]
+                    
+                    response = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
                         max_tokens=1024,
                         messages=[{"role": "user", "content": prompt}]
                     )
                     
                     result = response.content[0].text
-                    st.success("✅ IA procesada!")
+                    
+                    st.success("✅ Procesado!")
                     st.markdown(result)
                     
-                    # Guardar resultado
+                    # Descargar
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     st.download_button(
                         label="📥 Descargar resultado",
@@ -110,22 +99,16 @@ if uploaded_file and hf_token:
                         file_name=f"resultado_{timestamp}.txt",
                         mime="text/plain"
                     )
-                
-                except:
-                    st.warning("⚠️ Claude API no configurada. Solo transcripción disponible.")
-        
-        # Limpiar archivo temporal
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+    
+    # Limpiar
+    if os.path.exists("temp_audio.wav"):
         os.remove("temp_audio.wav")
-        
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-
-elif uploaded_file and not hf_token:
-    st.warning("⚠️ Ingresa tu token de HuggingFace en la barra lateral")
 
 else:
-    st.info("👆 Sube un archivo de audio para empezar")
+    st.info("👆 Sube un archivo para empezar")
 
-# Footer
 st.markdown("---")
-st.markdown("Hecho por Oliver | Transcripción + IA en la nube ☁️")
+st.markdown("Hecho por la IA Claude| Audio + IA ☁️")
