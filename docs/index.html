@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Transcriptor AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI'; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 600px; width: 90%; }
+        h1 { color: #333; margin-bottom: 30px; text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #667eea; }
+        button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+        button:hover { background: #764ba2; }
+        .result { background: #f0f4ff; padding: 20px; border-radius: 8px; margin-top: 30px; display: none; }
+        .result.show { display: block; }
+        .loading { text-align: center; color: #667eea; }
+        .error { color: #d32f2f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Transcriptor + IA</h1>
+        
+        <div class="form-group">
+            <label>🔑 Token Claude API:</label>
+            <input type="password" id="claude_key" placeholder="sk-ant-v0-...">
+        </div>
+        
+        <div class="form-group">
+            <label>¿Qué hacer?</label>
+            <select id="action">
+                <option>📝 Solo transcripción</option>
+                <option>📋 Resumir</option>
+                <option>✅ Extraer acciones</option>
+                <option>🔍 Análisis completo</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Tu texto/transcripción:</label>
+            <textarea id="text" rows="6" placeholder="Pega aquí..."></textarea>
+        </div>
+        
+        <button onclick="procesar()">🚀 Procesar</button>
+        
+        <div id="resultado" class="result">
+            <div id="contenido"></div>
+        </div>
+    </div>
+    
+    <script>
+        async function procesar() {
+            const claude_key = document.getElementById('claude_key').value;
+            const text = document.getElementById('text').value;
+            const action = document.getElementById('action').value;
+            const resultado = document.getElementById('resultado');
+            const contenido = document.getElementById('contenido');
+            
+            if (!claude_key || !text) {
+                alert('⚠️ Completa todos los campos');
+                return;
+            }
+            
+            resultado.classList.add('show');
+            contenido.innerHTML = '<div class="loading">⏳ Procesando...</div>';
+            
+            try {
+                const prompts = {
+                    "📝 Solo transcripción": text,
+                    "📋 Resumir": `Resume en 3-5 puntos principales:\n\n${text}`,
+                    "✅ Extraer acciones": `Extrae SOLO las acciones/tareas a realizar:\n\n${text}`,
+                    "🔍 Análisis completo": `Analiza: resumen, temas principales, sentimiento, recomendaciones:\n\n${text}`
+                };
+                
+                const prompt = prompts[action];
+                
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': claude_key,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-5-sonnet-20241022',
+                        max_tokens: 800,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error?.message || 'Error en API');
+                }
+                
+                const data = await response.json();
+                const result = data.content[0].text;
+                
+                contenido.innerHTML = `<strong>✅ Resultado:</strong><br><br>${result.replace(/\n/g, '<br>')}`;
+            } catch (error) {
+                contenido.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
