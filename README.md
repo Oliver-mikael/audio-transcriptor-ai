@@ -1,2 +1,2 @@
 # audio-transcriptor-ai
-"App para transcribir audio y procesar con IA
+App para transcribir audio y procesar con IA
